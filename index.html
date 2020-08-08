@@ -1,0 +1,113 @@
+<head>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+    <style>
+        body {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h2 {
+            text-align: center;
+        }
+        form {
+            display: grid;
+        }
+        select {
+            margin: 0 auto;
+        }
+        polyline {
+            fill: none;
+            stroke-dasharray: 2000;
+            stroke-dashoffset: 2000;
+            animation: dash 4s linear forwards;
+            stroke-width: 3px;
+        }
+        svg {
+            transform: scaleY(-1);
+        }
+        @keyframes dash {
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h2> Covid 19 Recovery Curves </h2>
+    <form>
+        <select id="dropdown" onchange="getData(this)">
+            <option> Select a Country </option>
+        </select>
+    </form>
+    <svg id="graph" viewBox="0 0 1000 333">
+    </svg>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Confirmed</th>
+                <th>Active</th>
+                <th>Recovered</th>
+                <th>Deaths</th>
+            </tr>
+        </thead>
+        <tbody id="results">
+        </tbody>
+    </table>
+    <script>
+        fetch(`https://api.covid19api.com/countries`).then(res => res.json()).then(countries => {
+            dropdown.innerHTML += countries
+                .sort((a,b) => a.Slug > b.Slug)
+                .map(each => `<option value="${each.Slug}"> ${each.Country} </option>`)
+                .join('')
+        })
+        function getData(that){
+            fetch(`https://api.covid19api.com/total/dayone/country/${that.value}`)
+            .then(res => res.json()).then(days => {
+                drawGraphs(days)
+                results.innerHTML = days.length == 0 ? `<tr> no data for ${that.value} </tr>` : days
+                    .map(each =>
+                        `<tr>
+                            <td>${new Date(each.Date).toLocaleDateString()}</td>
+                            <td>${each.Confirmed}</td>
+                            <td>${each.Active}</td>
+                            <td>${each.Recovered}</td>
+                            <td>${each.Deaths}</td>
+                        </tr>`
+                    ).join('')
+            })
+        }
+        function drawGraphs(data){
+            graph.innerHTML = "" // blank out graph for new data
+            if(data.length == 0) return null // exit early if given an empty array
+            // the number of days is our y axis
+            xdivisions = data.length
+            // take 'Confirmed' cases on the last day as the y axis maximum
+            ydivisions = data[data.length - 1].Confirmed
+            // grab dimensions of the svg's viewbox
+            let [w, h] = graph.getAttribute('viewBox').split(' ').slice(-2)
+            // setup an array to collect point coordinates in {x,y} format
+            let deathline = new Array
+            let recoveredline = new Array
+            let activeline = new Array
+            // iterate through the data and calculate a datapoint for each day
+            data.forEach((each, index) => {
+                deathline.push({
+                    x: index / xdivisions * w,
+                    y: each.Deaths / ydivisions * h
+                })
+                recoveredline.push({
+                    x: index / xdivisions * w,
+                    y: each.Recovered / ydivisions * h
+                })
+                activeline.push({
+                    x: index / xdivisions * w,
+                    y: each.Active / ydivisions * h
+                })
+            })
+            graph.innerHTML = ""
+            graph.innerHTML += `<polyline stroke="black" points="${deathline.map(({x,y}) => `${x}, ${y}`).join(' ')}"/>`
+            graph.innerHTML += `<polyline stroke="lightgreen" points="${recoveredline.map(({x,y}) => `${x}, ${y}`).join(' ')}"/>`
+            graph.innerHTML += `<polyline stroke="pink" points="${activeline.map(({x,y}) => `${x}, ${y}`).join(' ')}"/>`
+        }
+    </script>
+</body>
