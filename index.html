@@ -59,6 +59,9 @@
                 .sort((a,b) => a.Slug > b.Slug)
                 .map(each => `<option value="${each.Slug}"> ${each.Country} </option>`)
                 .join('')
+            
+            dropdown.value = 'united-states'
+            getData(dropdown)
         })
         function getData(that){
             fetch(`https://api.covid19api.com/total/dayone/country/${that.value}`)
